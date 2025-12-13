@@ -119,7 +119,7 @@ if st.button("Calculer le spot"):
                 to_export.to_excel(out, index=False, sheet_name="Spots")
             with open("spots_export.xlsx", "rb") as f:
                 st.download_button(
-                    label="📥 Télécharger le résultat Excel",
+                    label="Télécharger le résultat Excel",
                     data=f,
                     file_name="spots.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
