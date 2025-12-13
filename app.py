@@ -34,7 +34,7 @@ def safe_float_list(lst):
     return [None if v is None else float(v) for v in lst]
 
 # ---------- Interface ----------
-st.title("<<Calcul automatique du Spot d’un Produit Structuré>>")
+st.title("<Calcul automatique du Spot d’un Produit Structuré>")
 st.markdown("Entrez les tickers Yahoo (ex: AAPL, BNP.PA) et les dates (JJ/MM/AAAA) une par ligne.")
 
 nb_sj = st.number_input("Nombre de sous-jacents", min_value=1, max_value=10, value=2)
@@ -92,14 +92,14 @@ if st.button("Calculer le spot"):
             progress.progress(int(idx/total * 100))
 
         df = pd.DataFrame(resultats)
-        st.subheader("- Résultats individuels")
+        st.subheader("- Résultats individuels -")
         st.dataframe(df)
 
         if pond_total == 0:
             st.error("Impossible de calculer spot global : pondération totale = 0 ou pas de prix valides.")
         else:
             spot_global = spots / pond_total
-            st.subheader("- Spot global pondéré")
+            st.subheader("- Spot global pondéré -")
             st.metric("Spot global", f"{spot_global:.6f}")
 
             # Graphique simple : barres des spots
