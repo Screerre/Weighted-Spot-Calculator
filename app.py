@@ -115,9 +115,8 @@ if st.button("Calculer le spot"):
 
             # Export Excel (création en mémoire)
             to_export = df.copy()
-            out = pd.ExcelWriter("spots_export.xlsx", engine="openpyxl")
-            to_export.to_excel(out, index=False, sheet_name="Spots")
-            out.save()
+            with pd.ExcelWriter("spots_export.xlsx", engine="openpyxl") as out:
+                to_export.to_excel(out, index=False, sheet_name="Spots")
             with open("spots_export.xlsx", "rb") as f:
                 st.download_button(
                     label="📥 Télécharger le résultat Excel",
