@@ -25,7 +25,6 @@ def get_price_on_date(ticker, date_str):
         return None
     if data is None or data.empty:
         return None
-    # normaliser index timezone si besoin
     if data.index.tz is not None:
         data.index = data.index.tz_localize(None)
     data["diff"] = abs(data.index - date)
@@ -46,11 +45,10 @@ def is_valid_ticker(ticker):
     except Exception:
         return False
 
-# 🌟 MODIFIÉ : Résolution de Ticker avec une logique de recherche plus agressive
+# Résolution de Ticker : Logique agressive et validée
 def resolve_ticker_from_name(name_or_ticker):
     """
-    Tente de trouver le ticker Yahoo Finance à partir du nom de la compagnie 
-    en utilisant une logique d'extraction plus ciblée dans la recherche.
+    Tente de trouver le ticker Yahoo Finance à partir du nom de la compagnie.
     """
     clean_input = name_or_ticker.strip()
     
@@ -66,14 +64,14 @@ def resolve_ticker_from_name(name_or_ticker):
         response = google.search(queries=[query])
         search_text = response.result.upper()
         
-        # 2a. Recherche agressive: Ticker suivi d'un séparateur (souvent le format Yahoo)
+        # 2a. Recherche agressive (souvent le format Yahoo: Ticker suivi d'un séparateur)
         match = re.search(r"\b([A-Z0-9]{2,5})\b\s*(-|\s)", search_text)
         if match:
              potential_ticker = match.group(1).upper()
              if is_valid_ticker(potential_ticker):
                 return potential_ticker
         
-        # 2b. Fallback: Recherche simple (pour les cas où 2a échoue)
+        # 2b. Fallback: Recherche simple
         match_simple = re.search(r"\b([A-Z0-9]{1,5}\.?[A-Z]{1,2}|[A-Z]{1,5})\b", search_text)
         if match_simple:
              potential_ticker = match_simple.group(1).upper()
@@ -87,7 +85,7 @@ def resolve_ticker_from_name(name_or_ticker):
 
 # ---------- Interface ----------
 st.title("💰 Calcul automatique du Spot d’un Produit Structuré")
-st.markdown("Entrez les noms des compagnies ou tickers, et les dates de constatation.")
+st.markdown("Entrez les noms des compagnies ou tickers, et les dates de constatation. **N'oubliez pas d'entrer au moins une date !**")
 
 nb_sj = st.number_input("Nombre de sous-jacents", min_value=1, max_value=10, value=2)
 
@@ -117,32 +115,36 @@ for i in range(nb_sj):
         min_value=0.0, max_value=10.0, value=0.0, step=0.01, key=f"pond{i}"
     )
     
-    if input_name and dates:
-        
+    # 🌟 NOUVEAU : Logique de FEEDBACK et de STOCKAGE optimisée
+    if input_name:
         resolved_ticker = resolve_ticker_from_name(input_name)
         ticker_to_use = resolved_ticker if resolved_ticker else input_name.strip().upper()
-
+        
         dates_list = [d.strip() for d in dates.split("\n") if d.strip()]
 
-        # Affichage du feedback immédiat
         if resolved_ticker:
              st.success(f"✅ Ticker résolu et validé : **{ticker_to_use}**")
         else:
-             st.error(f"❌ Ticker introuvable pour **'{input_name}'**. Utilisation de l'entrée brute : **{ticker_to_use}** (risque d'échec de récupération des prix).")
+             st.error(f"❌ Ticker introuvable pour **'{input_name}'**. Utilisation de l'entrée brute : **{ticker_to_use}** (risque d'échec).")
 
-
-        sous_jacents[ticker_to_use] = { 
-            "dates": dates_list, 
-            "pond": ponderation,
-            "input_name": input_name.strip(), 
-            "resolved_ticker": ticker_to_use   
-        }
+        # STOCKAGE dans le dictionnaire UNIQUEMENT si le Ticker est là ET qu'au moins une date est fournie
+        if dates_list:
+            sous_jacents[ticker_to_use] = { 
+                "dates": dates_list, 
+                "pond": ponderation,
+                "input_name": input_name.strip(), 
+                "resolved_ticker": ticker_to_use   
+            }
+        elif resolved_ticker:
+             # Si le Ticker est trouvé mais les dates manquent, avertir l'utilisateur
+             st.warning(f"❗ **Attention** : Les dates de constatation pour {ticker_to_use} sont manquantes. Ce sous-jacent ne sera pas inclus dans le calcul.")
 
 st.write("") 
 
 if st.button("🚀 Calculer le spot"):
+    # Le calcul ne se lance que si sous_jacents a été rempli
     if not sous_jacents:
-        st.error("❌ Aucun sous-jacent renseigné ou impossible d'en déterminer un ticker valide.")
+        st.error("❌ Impossible de lancer le calcul. Aucun sous-jacent n'a pu être configuré (vérifiez le Ticker ET les dates).")
     else:
         resultats = []
         spots, pond_total = 0.0, 0.0
@@ -197,7 +199,7 @@ if st.button("🚀 Calculer le spot"):
         st.dataframe(df)
         
         if prix_manquants_compteur > 0:
-            st.warning(f"⚠️ Attention : {prix_manquants_compteur} sous-jacent(s) n'a/ont pas pu avoir son/leur spot calculé (Ticker introuvable ou dates invalides).")
+            st.warning(f"⚠️ Attention : {prix_manquants_compteur} sous-jacent(s) n'a/ont pas pu avoir son/leur spot calculé (Ticker introuvable, dates invalides ou données manquantes).")
 
 
         if pond_total == 0:
