@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Spot Calculator", layout="wide")
 
-# ---------- Utilitaires ----------
+# ---------- Utilitaires (inchangé) ----------
 def get_price_on_date(ticker, date_str):
     """Retourne le prix Close le plus proche de date_str (format JJ/MM/AAAA)"""
     try:
@@ -33,11 +33,22 @@ def get_price_on_date(ticker, date_str):
 def safe_float_list(lst):
     return [None if v is None else float(v) for v in lst]
 
-# ---------- Interface ----------
+# ---------- Interface (MODIFIÉE) ----------
 st.title("<Calcul automatique du Spot d’un Produit Structuré>")
 st.markdown("Entrez les tickers Yahoo (ex: AAPL, BNP.PA) et les dates (JJ/MM/AAAA) une par ligne.")
 
 nb_sj = st.number_input("Nombre de sous-jacents", min_value=1, max_value=10, value=2)
+
+# 🌟 MODIFICATION MAJEURE : SÉLECTEUR GLOBAL
+mode_calcul_global = st.selectbox(
+    "Mode de calcul du prix de constatation (applicable à tous les sous-jacents)",
+    options=[
+        "Moyenne simple",
+        "Cours le plus haut (max)",
+        "Cours le plus bas (min)"
+    ],
+    key="mode_calc_global"
+)
 
 sous_jacents = {}
 cols = st.columns(3)
@@ -46,16 +57,7 @@ for i in range(nb_sj):
     ticker = st.text_input(f"Ticker Yahoo (ex: BNP.PA)", key=f"ticker{i}")
     dates = st.text_area(f"Dates de constatation (JJ/MM/AAAA, une par ligne)", key=f"dates{i}", height=120)
     
-    # 🌟 AJOUT : Sélecteur du mode de calcul
-    mode_calcul = st.selectbox(
-        f"Mode de calcul du prix de constatation pour {ticker or f'#{i+1}'}",
-        options=[
-            "Moyenne simple",
-            "Cours le plus haut (max)",
-            "Cours le plus bas (min)"
-        ],
-        key=f"mode_calc{i}"
-    )
+    # Sélecteur de mode retiré ici !
 
     ponderation = st.number_input(
         f"Pondération (0 = équi-pondérée) pour {ticker or f'#{i+1}'}",
@@ -64,11 +66,10 @@ for i in range(nb_sj):
     
     if ticker and dates:
         dates_list = [d.strip() for d in dates.split("\n") if d.strip()]
-        # ⚠️ MODIFICATION : Enregistrer le mode de calcul
+        # Le mode n'est plus stocké ici, il est global.
         sous_jacents[ticker.strip().upper()] = {
             "dates": dates_list, 
             "pond": ponderation,
-            "mode": mode_calcul # <-- NOUVELLE VALEUR
         }
 
 st.write("")  # espace
@@ -83,23 +84,25 @@ if st.button("Calculer le spot"):
         progress = st.progress(0)
         total = len(sous_jacents)
         idx = 0
+        
+        # Le mode de calcul global est récupéré ici
+        mode_global = mode_calcul_global 
 
         for ticker, info in sous_jacents.items():
             valeurs = [get_price_on_date(ticker, d) for d in info["dates"]]
             
             # Remplacer None par NaN
             valeurs_clean = [v for v in valeurs if v is not None]
-            mode_calcul = info["mode"] # Récupération du mode
 
             if not valeurs_clean:
                 spot = None
             else:
-                # 🌟 MODIFICATION : Logique de calcul du spot basée sur le mode sélectionné
-                if mode_calcul == "Moyenne simple":
+                # 🌟 LOGIQUE MODIFIÉE utilisant le mode global
+                if mode_global == "Moyenne simple":
                     spot = sum(valeurs_clean) / len(valeurs_clean)
-                elif mode_calcul == "Cours le plus haut (max)":
+                elif mode_global == "Cours le plus haut (max)":
                     spot = max(valeurs_clean)
-                elif mode_calcul == "Cours le plus bas (min)":
+                elif mode_global == "Cours le plus bas (min)":
                     spot = min(valeurs_clean)
                 else: 
                     # Par défaut : moyenne si le mode n'est pas reconnu (sécurité)
@@ -112,11 +115,12 @@ if st.button("Calculer le spot"):
 
             resultats.append({
                 "Ticker": ticker,
-                "Mode de calcul": mode_calcul, # <-- AJOUTÉ AU TABLEAU
                 "Dates": ", ".join(info["dates"]),
                 "Valeurs": ", ".join([str(v) if v is not None else "N/A" for v in valeurs]),
                 "Spot": round(spot, 6) if spot is not None else "N/A",
-                "Pondération": pond
+                "Pondération": pond,
+                # Ajout du mode global pour référence dans le tableau
+                "Mode global utilisé": mode_global
             })
 
             idx += 1
@@ -132,6 +136,7 @@ if st.button("Calculer le spot"):
             spot_global = spots / pond_total
             st.subheader("- Spot global pondéré -")
             st.metric("Spot global", f"{spot_global:.6f}")
+            st.info(f"Le mode de calcul des spots individuels utilisé est : **{mode_global}**")
 
             # Graphique simple : barres des spots
             try:
