@@ -35,7 +35,7 @@ def get_price_on_date(ticker, date_str):
 def safe_float_list(lst):
     return [None if v is None else float(v) for v in lst]
 
-# 🌟 NOUVEAU : Fonction de validation rapide du Ticker (pour les non-mappés)
+# Fonction de validation rapide du Ticker (pour les non-mappés)
 def is_valid_ticker(ticker):
     """Vérifie rapidement si un ticker est reconnu par yfinance."""
     if not ticker: return False
@@ -50,7 +50,7 @@ def is_valid_ticker(ticker):
         return False
 
 
-# 🌟 NOUVEAU : Fonction de résolution de nom (avec la liste blanche)
+# NOUVEAU : Fonction de résolution de nom (avec la liste blanche)
 def resolve_ticker_from_name(name_or_ticker):
     """
     Tente de trouver le ticker Yahoo Finance en utilisant d'abord un mappage 
@@ -108,7 +108,7 @@ def resolve_ticker_from_name(name_or_ticker):
 
 
 # ---------- Interface ----------
-st.title("💰 Calcul automatique du Spot d’un Produit Structuré")
+st.title("<Calcul automatique du Spot d’un Produit Structuré>")
 st.markdown("Entrez le **Nom de la compagnie** ou le Ticker (ex: Apple, BNP.PA).")
 
 nb_sj = st.number_input("Nombre de sous-jacents", min_value=1, max_value=10, value=2)
@@ -117,7 +117,7 @@ sous_jacents = {}
 for i in range(nb_sj):
     st.markdown(f"---\n**Sous-jacent {i+1}**")
     
-    # ⚠️ MODIFIÉ : Accepte Nom ou Ticker
+    # MODIFIÉ : Accepte Nom ou Ticker
     input_name = st.text_input(
         f"Nom de la compagnie ou Ticker (ex: Apple, BNP.PA)", 
         key=f"name_or_ticker{i}"
@@ -125,13 +125,13 @@ for i in range(nb_sj):
     
     dates = st.text_area(f"Dates de constatation (JJ/MM/AAAA, une par ligne)", key=f"dates{i}", height=120)
     
-    # ⚠️ MODIFIÉ : Affiche l'input_name dans la pondération
+    # MODIFIÉ : Affiche l'input_name dans la pondération
     ponderation = st.number_input(
         f"Pondération (0 = équi-pondérée) pour {input_name or f'#{i+1}'}",
         min_value=0.0, max_value=10.0, value=0.0, step=0.01, key=f"pond{i}"
     )
     
-    # 🌟 NOUVEAU : Logique de Résolution et Feedback
+    # NOUVEAU : Logique de Résolution et Feedback
     if input_name:
         resolved_ticker = resolve_ticker_from_name(input_name)
         ticker_to_use = resolved_ticker if resolved_ticker else input_name.strip().upper()
@@ -153,14 +153,14 @@ for i in range(nb_sj):
                 "resolved_ticker": ticker_to_use   
             }
         elif resolved_ticker:
-             st.warning(f"❗ **Attention** : Les dates de constatation pour {ticker_to_use} sont manquantes. Ce sous-jacent ne sera pas inclus dans le calcul.")
+             st.warning(f" **Attention** : Les dates de constatation pour {ticker_to_use} sont manquantes. Ce sous-jacent ne sera pas inclus dans le calcul.")
 
 
 st.write("") 
 
 if st.button("🚀 Calculer le spot"):
     if not sous_jacents:
-        st.error("❌ Impossible de lancer le calcul. Aucun sous-jacent n'a pu être configuré (vérifiez le Ticker ET les dates).")
+        st.error("Impossible de lancer le calcul. Aucun sous-jacent n'a pu être configuré (vérifiez le Ticker et les dates).")
     else:
         resultats = []
         spots, pond_total = 0.0, 0.0
@@ -192,8 +192,8 @@ if st.button("🚀 Calculer le spot"):
                 pond_total += pond
 
             resultats.append({
-                "Nom Entré": info["input_name"],          # 🌟 NOUVEAU
-                "Ticker Utilisé": info["resolved_ticker"], # 🌟 NOUVEAU
+                "Nom Entré": info["input_name"],          # NOUVEAU
+                "Ticker Utilisé": info["resolved_ticker"], # NOUVEAU
                 "Dates": ", ".join(info["dates"]),
                 "Valeurs": ", ".join([str(v) if v is not None else "N/A" for v in valeurs]),
                 "Spot": round(spot, 6) if spot is not None else "N/A",
@@ -206,18 +206,18 @@ if st.button("🚀 Calculer le spot"):
         progress.empty() 
 
         df = pd.DataFrame(resultats)
-        st.subheader("📊 Résultats individuels par Sous-Jacent")
+        st.subheader("- Résultats individuels par Sous-Jacent -")
         st.dataframe(df)
         
         if prix_manquants_compteur > 0:
-            st.warning(f"⚠️ Attention : {prix_manquants_compteur} sous-jacent(s) n'a/ont pas pu avoir son/leur spot calculé (Ticker non reconnu ou données manquantes).")
+            st.warning(f" Attention : {prix_manquants_compteur} Ticker non reconnu ou données manquantes.")
 
 
         if pond_total == 0:
-            st.error("❌ Impossible de calculer le spot global : pondération totale = 0 ou pas de prix valides. Vérifiez vos dates.")
+            st.error("Impossible de calculer le spot global : pondération totale = 0 ou pas de prix valides. Vérifiez vos dates.")
         else:
             spot_global = spots / pond_total
-            st.subheader("✨ Spot global pondéré")
+            st.subheader("- Spot global pondéré- ")
             st.metric("Spot global", f"{spot_global:.6f}")
 
             # Graphique simple : barres des spots
@@ -237,7 +237,7 @@ if st.button("🚀 Calculer le spot"):
                 to_export.to_excel(out, index=False, sheet_name="Spots")
             with open("spots_export.xlsx", "rb") as f:
                 st.download_button(
-                    label="⬇️ Télécharger le résultat Excel",
+                    label="Télécharger le résultat Excel",
                     data=f,
                     file_name="spots.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
