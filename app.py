@@ -77,12 +77,12 @@ def resolve_ticker_from_name(name_or_ticker):
     return None 
 
 # ---------- Interface ----------
-st.title("💰 Calcul automatique du Spot d’un Produit Structuré")
+st.title("<Calcul automatique du Spot d’un Produit Structuré>")
 st.markdown("Entrez le **Nom de la compagnie** ou le Ticker (ex: Apple, BNP.PA).")
 
 nb_sj = st.number_input("Nombre de sous-jacents", min_value=1, max_value=10, value=2)
 
-# 🌟 RÉINTÉGRÉ : Sélecteur Global
+# RÉINTÉGRÉ : Sélecteur Global
 mode_calcul_global = st.selectbox(
     "Mode de calcul du prix de constatation (applicable à tous les sous-jacents)",
     options=[
@@ -116,7 +116,7 @@ for i in range(nb_sj):
         dates_list = [d.strip() for d in dates.split("\n") if d.strip()]
 
         if not resolved_ticker:
-             st.error(f"❌ Ticker introuvable pour **'{input_name}'**. Utilisation de l'entrée brute : **{ticker_to_use}** (risque d'échec de récupération des prix).")
+             st.error(f"Ticker introuvable pour **'{input_name}'**. Utilisation de l'entrée brute : **{ticker_to_use}** (risque d'échec de récupération des prix).")
 
         if dates_list:
             sous_jacents[ticker_to_use] = { 
@@ -126,14 +126,14 @@ for i in range(nb_sj):
                 "resolved_ticker": ticker_to_use   
             }
         elif resolved_ticker:
-             st.warning(f"❗ **Attention** : Les dates de constatation pour **{ticker_to_use}** sont manquantes. Ce sous-jacent ne sera pas inclus dans le calcul.")
+             st.warning(f" **Attention** : Les dates de constatation pour **{ticker_to_use}** sont manquantes. Ce sous-jacent ne sera pas inclus dans le calcul.")
 
 
 st.write("") 
 
-if st.button("🚀 Calculer le spot"):
+if st.button("- Calculer le spot -"):
     if not sous_jacents:
-        st.error("❌ Impossible de lancer le calcul. Aucun sous-jacent n'a pu être configuré (vérifiez le Ticker ET les dates).")
+        st.error("Impossible de lancer le calcul. Vérifiez le Ticker et les dates.")
     else:
         resultats = []
         spots, pond_total = 0.0, 0.0
@@ -156,7 +156,7 @@ if st.button("🚀 Calculer le spot"):
                 spot = None
                 prix_manquants_compteur += 1
             else:
-                # 🌟 RÉINTÉGRÉ : Logique de calcul basée sur le mode global
+                # RÉINTÉGRÉ : Logique de calcul basée sur le mode global
                 if mode_global == "Moyenne simple":
                     spot = sum(valeurs_clean) / len(valeurs_clean)
                 elif mode_global == "Cours le plus haut (max)":
@@ -186,18 +186,18 @@ if st.button("🚀 Calculer le spot"):
         progress.empty() 
 
         df = pd.DataFrame(resultats)
-        st.subheader("📊 Résultats individuels par Sous-Jacent")
+        st.subheader("- Résultats individuels par Sous-Jacent -")
         st.dataframe(df)
         
         if prix_manquants_compteur > 0:
-            st.warning(f"⚠️ Attention : {prix_manquants_compteur} sous-jacent(s) n'a/ont pas pu avoir son/leur spot calculé (Ticker non reconnu ou données manquantes).")
+            st.warning(f"Attention : {prix_manquants_compteur} sous-jacent(s) n'a/ont pas pu avoir son/leur spot calculé (Ticker non reconnu ou données manquantes).")
 
 
         if pond_total == 0:
-            st.error("❌ Impossible de calculer le spot global : pondération totale = 0 ou pas de prix valides. Vérifiez vos dates.")
+            st.error("Impossible de calculer le spot global : pondération totale = 0 ou pas de prix valides. Vérifiez vos dates.")
         else:
             spot_global = spots / pond_total
-            st.subheader("✨ Spot global pondéré")
+            st.subheader("- Spot global pondéré -")
             st.metric("Spot global", f"{spot_global:.6f}")
             st.info(f"Mode de calcul des spots individuels : **{mode_global}**") # Affichage du mode
 
@@ -218,7 +218,7 @@ if st.button("🚀 Calculer le spot"):
                 to_export.to_excel(out, index=False, sheet_name="Spots")
             with open("spots_export.xlsx", "rb") as f:
                 st.download_button(
-                    label="⬇️ Télécharger le résultat Excel",
+                    label="Télécharger le résultat Excel",
                     data=f,
                     file_name="spots.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
