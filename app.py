@@ -35,50 +35,52 @@ def get_price_on_date(ticker, date_str):
 def safe_float_list(lst):
     return [None if v is None else float(v) for v in lst]
 
-# 🌟 NOUVEAU : Fonction de validation rapide du Ticker
 def is_valid_ticker(ticker):
     """Vérifie rapidement si un ticker est reconnu par yfinance."""
+    if not ticker: return False
     try:
-        # Tenter de charger les informations de base
         info = yf.Ticker(ticker).info
-        # On vérifie si l'objet n'est pas vide et a un nom (indicatif de validité)
         if 'longName' in info and info.get('currentPrice') is not None:
             return True
         return False
     except Exception:
         return False
 
-# 🌟 MODIFIÉ : Résolution de Ticker avec validation
+# 🌟 MODIFIÉ : Résolution de Ticker avec une logique de recherche plus agressive
 def resolve_ticker_from_name(name_or_ticker):
     """
     Tente de trouver le ticker Yahoo Finance à partir du nom de la compagnie 
-    et valide son existence avant de le retourner.
+    en utilisant une logique d'extraction plus ciblée dans la recherche.
     """
-    clean_input = name_or_ticker.strip().upper()
+    clean_input = name_or_ticker.strip()
     
     # 1. Vérification si l'entrée est déjà un Ticker potentiel
-    if len(clean_input) <= 8 and (' ' not in clean_input): # 8 pour être large (ex: tickers Euronext/Asie)
-        if is_valid_ticker(clean_input):
-            return clean_input
+    if len(clean_input) <= 8 and (' ' not in clean_input):
+        if is_valid_ticker(clean_input.upper()):
+            return clean_input.upper()
     
-    # 2. Recherche via Google Search pour les noms longs ou tickers non validés
-    query = f"{name_or_ticker} yahoo finance ticker"
+    # 2. Utilisation de la recherche Google avec une extraction ciblée
+    query = f"{clean_input} ticker"
     
     try:
         response = google.search(queries=[query])
-        search_result = response.result
+        search_text = response.result.upper()
         
-        # Pattern pour les Tickers
-        match = re.search(r"\b([A-Z0-9]{1,5}\.?[A-Z]{1,2}|[A-Z]{1,5})\b", search_result[:1000])
-        
+        # 2a. Recherche agressive: Ticker suivi d'un séparateur (souvent le format Yahoo)
+        match = re.search(r"\b([A-Z0-9]{2,5})\b\s*(-|\s)", search_text)
         if match:
-            potential_ticker = match.group(1).upper()
-            
-            # Validation du ticker trouvé par la recherche
-            if is_valid_ticker(potential_ticker):
-                 return potential_ticker
-                 
-        return None # Aucune correspondance fiable trouvée
+             potential_ticker = match.group(1).upper()
+             if is_valid_ticker(potential_ticker):
+                return potential_ticker
+        
+        # 2b. Fallback: Recherche simple (pour les cas où 2a échoue)
+        match_simple = re.search(r"\b([A-Z0-9]{1,5}\.?[A-Z]{1,2}|[A-Z]{1,5})\b", search_text)
+        if match_simple:
+             potential_ticker = match_simple.group(1).upper()
+             if is_valid_ticker(potential_ticker):
+                return potential_ticker
+                
+        return None
         
     except Exception:
         return None
@@ -89,7 +91,6 @@ st.markdown("Entrez les noms des compagnies ou tickers, et les dates de constata
 
 nb_sj = st.number_input("Nombre de sous-jacents", min_value=1, max_value=10, value=2)
 
-# Sélecteur Global (Unifié)
 mode_calcul_global = st.selectbox(
     "Mode de calcul du prix de constatation (applicable à tous les sous-jacents)",
     options=[
@@ -123,14 +124,13 @@ for i in range(nb_sj):
 
         dates_list = [d.strip() for d in dates.split("\n") if d.strip()]
 
-        # 🌟 NOUVEAU : Affichage du feedback immédiat
+        # Affichage du feedback immédiat
         if resolved_ticker:
              st.success(f"✅ Ticker résolu et validé : **{ticker_to_use}**")
         else:
              st.error(f"❌ Ticker introuvable pour **'{input_name}'**. Utilisation de l'entrée brute : **{ticker_to_use}** (risque d'échec de récupération des prix).")
 
 
-        # Le dictionnaire utilise le Ticker pour la clé (unique)
         sous_jacents[ticker_to_use] = { 
             "dates": dates_list, 
             "pond": ponderation,
@@ -138,7 +138,7 @@ for i in range(nb_sj):
             "resolved_ticker": ticker_to_use   
         }
 
-st.write("")  # espace
+st.write("") 
 
 if st.button("🚀 Calculer le spot"):
     if not sous_jacents:
@@ -158,14 +158,12 @@ if st.button("🚀 Calculer le spot"):
             
             valeurs = [get_price_on_date(ticker, d) for d in info["dates"]]
             
-            # Traitement des valeurs
             valeurs_clean = [v for v in valeurs if v is not None]
 
             if not valeurs_clean:
                 spot = None
                 prix_manquants_compteur += 1
             else:
-                # Logique de calcul du spot basée sur le mode global
                 if mode_global == "Moyenne simple":
                     spot = sum(valeurs_clean) / len(valeurs_clean)
                 elif mode_global == "Cours le plus haut (max)":
@@ -198,13 +196,12 @@ if st.button("🚀 Calculer le spot"):
         st.subheader("📊 Résultats individuels par Sous-Jacent")
         st.dataframe(df)
         
-        # Affichage d'un message d'erreur plus précis si des prix manquent
         if prix_manquants_compteur > 0:
             st.warning(f"⚠️ Attention : {prix_manquants_compteur} sous-jacent(s) n'a/ont pas pu avoir son/leur spot calculé (Ticker introuvable ou dates invalides).")
 
 
         if pond_total == 0:
-            st.error("❌ Impossible de calculer le spot global : pondération totale = 0 ou aucun prix valide trouvé.")
+            st.error("❌ Impossible de calculer le spot global : pondération totale = 0 ou aucun prix valide trouvé. Veuillez vérifier les dates et les tickers.")
         else:
             spot_global = spots / pond_total
             st.subheader("✨ Spot Global Pondéré du Produit Structuré")
