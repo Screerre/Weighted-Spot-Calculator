@@ -138,12 +138,11 @@ for i in range(nb_sj):
         
         dates_list = [d.strip() for d in dates.split("\n") if d.strip()]
 
-        if resolved_ticker:
-             st.success(f"✅ Ticker résolu et validé : **{ticker_to_use}**")
-        else:
-             # Si pas de résolution, c'est l'entrée brute qui sera utilisée (risque d'échec)
+        if not resolved_ticker:
+             # Afficher l'erreur UNIQUEMENT si le nom n'a pas pu être résolu
              st.error(f"❌ Ticker introuvable pour **'{input_name}'**. Utilisation de l'entrée brute : **{ticker_to_use}** (risque d'échec de récupération des prix).")
-
+        # Si resolved_ticker est VRAI, on ne fait rien 
+        
         # STOCKAGE dans le dictionnaire UNIQUEMENT si le Ticker est là ET qu'au moins une date est fournie
         if dates_list:
             sous_jacents[ticker_to_use] = { 
@@ -158,7 +157,7 @@ for i in range(nb_sj):
 
 st.write("") 
 
-if st.button("🚀 Calculer le spot"):
+if st.button("Calculer le spot"):
     if not sous_jacents:
         st.error("Impossible de lancer le calcul. Aucun sous-jacent n'a pu être configuré (vérifiez le Ticker et les dates).")
     else:
