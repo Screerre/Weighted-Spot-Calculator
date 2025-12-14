@@ -45,13 +45,31 @@ for i in range(nb_sj):
     st.markdown(f"---\n**Sous-jacent {i+1}**")
     ticker = st.text_input(f"Ticker Yahoo (ex: BNP.PA)", key=f"ticker{i}")
     dates = st.text_area(f"Dates de constatation (JJ/MM/AAAA, une par ligne)", key=f"dates{i}", height=120)
+    
+    # 🌟 AJOUT : Sélecteur du mode de calcul
+    mode_calcul = st.selectbox(
+        f"Mode de calcul du prix de constatation pour {ticker or f'#{i+1}'}",
+        options=[
+            "Moyenne simple",
+            "Cours le plus haut (max)",
+            "Cours le plus bas (min)"
+        ],
+        key=f"mode_calc{i}"
+    )
+
     ponderation = st.number_input(
         f"Pondération (0 = équi-pondérée) pour {ticker or f'#{i+1}'}",
         min_value=0.0, max_value=10.0, value=0.0, step=0.01, key=f"pond{i}"
     )
+    
     if ticker and dates:
         dates_list = [d.strip() for d in dates.split("\n") if d.strip()]
-        sous_jacents[ticker.strip().upper()] = {"dates": dates_list, "pond": ponderation}
+        # ⚠️ MODIFICATION : Enregistrer le mode de calcul
+        sous_jacents[ticker.strip().upper()] = {
+            "dates": dates_list, 
+            "pond": ponderation,
+            "mode": mode_calcul # <-- NOUVELLE VALEUR
+        }
 
 st.write("")  # espace
 
@@ -68,12 +86,24 @@ if st.button("Calculer le spot"):
 
         for ticker, info in sous_jacents.items():
             valeurs = [get_price_on_date(ticker, d) for d in info["dates"]]
-            # Remplacer None par NaN pour moyenne ignorante
+            
+            # Remplacer None par NaN
             valeurs_clean = [v for v in valeurs if v is not None]
+            mode_calcul = info["mode"] # Récupération du mode
+
             if not valeurs_clean:
                 spot = None
             else:
-                spot = sum(valeurs_clean) / len(valeurs_clean)
+                # 🌟 MODIFICATION : Logique de calcul du spot basée sur le mode sélectionné
+                if mode_calcul == "Moyenne simple":
+                    spot = sum(valeurs_clean) / len(valeurs_clean)
+                elif mode_calcul == "Cours le plus haut (max)":
+                    spot = max(valeurs_clean)
+                elif mode_calcul == "Cours le plus bas (min)":
+                    spot = min(valeurs_clean)
+                else: 
+                    # Par défaut : moyenne si le mode n'est pas reconnu (sécurité)
+                    spot = sum(valeurs_clean) / len(valeurs_clean)
 
             pond = info["pond"] if info["pond"] > 0 else 1.0
             if spot is not None:
@@ -82,6 +112,7 @@ if st.button("Calculer le spot"):
 
             resultats.append({
                 "Ticker": ticker,
+                "Mode de calcul": mode_calcul, # <-- AJOUTÉ AU TABLEAU
                 "Dates": ", ".join(info["dates"]),
                 "Valeurs": ", ".join([str(v) if v is not None else "N/A" for v in valeurs]),
                 "Spot": round(spot, 6) if spot is not None else "N/A",
