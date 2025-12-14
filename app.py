@@ -137,7 +137,6 @@ def resolve_ticker_from_name(name_or_ticker):
        "PAGERDUTYINC": "PD","MICROFOCUSINTL": "MCRO.L","FORTINETINC": "FTNT","VEEVASYSTEMS": "VEEV",
        "ATOSSE": "ATOS.PA","UPSTARTHOLDINGS": "UPST","SUMOLOGIC": "SUMO","SPLUNKINC": "SPLK",
 }
-    }
 
     if clean_input in COMMON_TICKERS:
         return COMMON_TICKERS[clean_input]
