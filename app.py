@@ -3,14 +3,14 @@ import streamlit as st
 import yfinance as yf
 from datetime import datetime, timedelta
 import pandas as pd
-import requests
 import matplotlib.pyplot as plt
 import re 
+# import requests # Inutile ici, retiré pour la propreté
 
-# Configuration de la page
 st.set_page_config(page_title="Spot Calculator", layout="wide")
 
 # ---------- Utilitaires ----------
+
 def get_price_on_date(ticker, date_str):
     """Retourne le prix Close le plus proche de date_str (format JJ/MM/AAAA)"""
     try:
@@ -20,7 +20,8 @@ def get_price_on_date(ticker, date_str):
     start = date - timedelta(days=4)
     end = date + timedelta(days=4)
     try:
-        data = yf.download(ticker.upper(), start=start, end=end, progress=False)
+        # Assurez-vous d'utiliser ticker.upper() pour la robustesse
+        data = yf.download(ticker.upper(), start=start, end=end, progress=False) 
     except Exception:
         return None
     if data is None or data.empty:
@@ -34,75 +35,89 @@ def get_price_on_date(ticker, date_str):
 def safe_float_list(lst):
     return [None if v is None else float(v) for v in lst]
 
+# 🌟 NOUVEAU : Fonction de validation rapide du Ticker (pour les non-mappés)
 def is_valid_ticker(ticker):
     """Vérifie rapidement si un ticker est reconnu par yfinance."""
     if not ticker: return False
     try:
+        # Essayer de charger les informations de base
         info = yf.Ticker(ticker).info
-        if 'longName' in info and info.get('currentPrice') is not None:
+        # Si 'longName' est présent et n'est pas une erreur
+        if 'longName' in info and len(info.get('longName', '')) > 2:
             return True
         return False
     except Exception:
         return False
 
-# Résolution de Ticker : Logique agressive et validée
+
+# 🌟 NOUVEAU : Fonction de résolution de nom (avec la liste blanche)
 def resolve_ticker_from_name(name_or_ticker):
     """
-    Tente de trouver le ticker Yahoo Finance à partir du nom de la compagnie.
+    Tente de trouver le ticker Yahoo Finance en utilisant d'abord un mappage 
+    pour les noms courants, puis la vérification directe (pour les tickers inconnus).
     """
-    clean_input = name_or_ticker.strip()
+    clean_input = name_or_ticker.strip().upper()
     
-    # 1. Vérification si l'entrée est déjà un Ticker potentiel
-    if len(clean_input) <= 8 and (' ' not in clean_input):
-        if is_valid_ticker(clean_input.upper()):
-            return clean_input.upper()
-    
-    # 2. Utilisation de la recherche Google avec une extraction ciblée
-    query = f"{clean_input} ticker"
-    
-    try:
-        response = google.search(queries=[query])
-        search_text = response.result.upper()
-        
-        # 2a. Recherche agressive (souvent le format Yahoo: Ticker suivi d'un séparateur)
-        match = re.search(r"\b([A-Z0-9]{2,5})\b\s*(-|\s)", search_text)
-        if match:
-             potential_ticker = match.group(1).upper()
-             if is_valid_ticker(potential_ticker):
-                return potential_ticker
-        
-        # 2b. Fallback: Recherche simple
-        match_simple = re.search(r"\b([A-Z0-9]{1,5}\.?[A-Z]{1,2}|[A-Z]{1,5})\b", search_text)
-        if match_simple:
-             potential_ticker = match_simple.group(1).upper()
-             if is_valid_ticker(potential_ticker):
-                return potential_ticker
-                
-        return None
-        
-    except Exception:
-        return None
+    # --- 1. Mappage Direct des noms courants (Liste Blanche) ---
+    COMMON_TICKERS = {
+        "APPLE": "AAPL",
+        "MICROSOFT": "MSFT",
+        "GOOGLE": "GOOGL",
+        "ALPHABET": "GOOGL",
+        "AMAZON": "AMZN",
+        "NVIDIA": "NVDA",
+        "TESLA": "TSLA",
+        "META": "META",
+        "BERKSHIRE HATHAWAY": "BRK-A",
+        "VISA": "V",
+        "JOHNSON & JOHNSON": "JNJ",
+        "JPMORGAN CHASE": "JPM",
+        "EXXON MOBIL": "XOM",
+        "COCA-COLA": "KO",
+        "WALMART": "WMT",
+        "DISNEY": "DIS",
+        "LVMH": "LVMH.PA",
+        "LOREAL": "OR.PA",
+        "TOTALENERGIES": "TTE",
+        "SANTE": "SAN.PA",
+        "BNP PARIBAS": "BNP.PA",
+        "BNP": "BNP.PA",
+        "SOCIETE GENERALE": "GLE.PA",
+        "HERMES": "RMS.PA",
+        "AIRBUS": "AIR.PA",
+        "AXA": "CS.PA",
+        "SAP": "SAP.DE",
+        "SIEMENS": "SIE.DE",
+        "BAYER": "BAYN.DE",
+        "SAMSUNG": "005930.KS",
+        "TAIWAN SEMICONDUCTOR": "TSM",
+        "TOYOTA": "TM"
+    }
+
+    # Vérification par la liste blanche
+    if clean_input in COMMON_TICKERS:
+        return COMMON_TICKERS[clean_input]
+
+    # 2. Vérification si l'entrée est un Ticker non mappé
+    if len(clean_input) <= 10 and (' ' not in clean_input): # Heuristique pour un ticker typique
+        if is_valid_ticker(clean_input):
+            return clean_input
+            
+    # Fallback pour les noms très longs non mappés (qui utiliseront le nom brut en cas d'échec)
+    return None 
+
 
 # ---------- Interface ----------
 st.title("💰 Calcul automatique du Spot d’un Produit Structuré")
-st.markdown("Entrez les noms des compagnies ou tickers, et les dates de constatation. **N'oubliez pas d'entrer au moins une date !**")
+st.markdown("Entrez le **Nom de la compagnie** ou le Ticker (ex: Apple, BNP.PA).")
 
 nb_sj = st.number_input("Nombre de sous-jacents", min_value=1, max_value=10, value=2)
-
-mode_calcul_global = st.selectbox(
-    "Mode de calcul du prix de constatation (applicable à tous les sous-jacents)",
-    options=[
-        "Moyenne simple",
-        "Cours le plus haut (max)",
-        "Cours le plus bas (min)"
-    ],
-    key="mode_calc_global"
-)
 
 sous_jacents = {}
 for i in range(nb_sj):
     st.markdown(f"---\n**Sous-jacent {i+1}**")
     
+    # ⚠️ MODIFIÉ : Accepte Nom ou Ticker
     input_name = st.text_input(
         f"Nom de la compagnie ou Ticker (ex: Apple, BNP.PA)", 
         key=f"name_or_ticker{i}"
@@ -110,12 +125,13 @@ for i in range(nb_sj):
     
     dates = st.text_area(f"Dates de constatation (JJ/MM/AAAA, une par ligne)", key=f"dates{i}", height=120)
     
+    # ⚠️ MODIFIÉ : Affiche l'input_name dans la pondération
     ponderation = st.number_input(
         f"Pondération (0 = équi-pondérée) pour {input_name or f'#{i+1}'}",
         min_value=0.0, max_value=10.0, value=0.0, step=0.01, key=f"pond{i}"
     )
     
-    # 🌟 NOUVEAU : Logique de FEEDBACK et de STOCKAGE optimisée
+    # 🌟 NOUVEAU : Logique de Résolution et Feedback
     if input_name:
         resolved_ticker = resolve_ticker_from_name(input_name)
         ticker_to_use = resolved_ticker if resolved_ticker else input_name.strip().upper()
@@ -125,7 +141,8 @@ for i in range(nb_sj):
         if resolved_ticker:
              st.success(f"✅ Ticker résolu et validé : **{ticker_to_use}**")
         else:
-             st.error(f"❌ Ticker introuvable pour **'{input_name}'**. Utilisation de l'entrée brute : **{ticker_to_use}** (risque d'échec).")
+             # Si pas de résolution, c'est l'entrée brute qui sera utilisée (risque d'échec)
+             st.error(f"❌ Ticker introuvable pour **'{input_name}'**. Utilisation de l'entrée brute : **{ticker_to_use}** (risque d'échec de récupération des prix).")
 
         # STOCKAGE dans le dictionnaire UNIQUEMENT si le Ticker est là ET qu'au moins une date est fournie
         if dates_list:
@@ -136,13 +153,12 @@ for i in range(nb_sj):
                 "resolved_ticker": ticker_to_use   
             }
         elif resolved_ticker:
-             # Si le Ticker est trouvé mais les dates manquent, avertir l'utilisateur
              st.warning(f"❗ **Attention** : Les dates de constatation pour {ticker_to_use} sont manquantes. Ce sous-jacent ne sera pas inclus dans le calcul.")
+
 
 st.write("") 
 
 if st.button("🚀 Calculer le spot"):
-    # Le calcul ne se lance que si sous_jacents a été rempli
     if not sous_jacents:
         st.error("❌ Impossible de lancer le calcul. Aucun sous-jacent n'a pu être configuré (vérifiez le Ticker ET les dates).")
     else:
@@ -153,7 +169,8 @@ if st.button("🚀 Calculer le spot"):
         total = len(sous_jacents)
         idx = 0
         
-        mode_global = mode_calcul_global 
+        # Le mode de calcul est la moyenne simple (par défaut dans votre code original)
+        mode_global = "Moyenne simple" 
         prix_manquants_compteur = 0
 
         for ticker, info in sous_jacents.items():
@@ -166,14 +183,8 @@ if st.button("🚀 Calculer le spot"):
                 spot = None
                 prix_manquants_compteur += 1
             else:
-                if mode_global == "Moyenne simple":
-                    spot = sum(valeurs_clean) / len(valeurs_clean)
-                elif mode_global == "Cours le plus haut (max)":
-                    spot = max(valeurs_clean)
-                elif mode_global == "Cours le plus bas (min)":
-                    spot = min(valeurs_clean)
-                else: 
-                    spot = sum(valeurs_clean) / len(valeurs_clean) 
+                # Calcul de la moyenne simple (selon votre code original)
+                spot = sum(valeurs_clean) / len(valeurs_clean) 
 
             pond = info["pond"] if info["pond"] > 0 else 1.0
             if spot is not None:
@@ -181,11 +192,11 @@ if st.button("🚀 Calculer le spot"):
                 pond_total += pond
 
             resultats.append({
-                "Nom Entré": info["input_name"],          
-                "Ticker Utilisé": info["resolved_ticker"], 
-                "Dates de constatation": ", ".join(info["dates"]),
-                "Valeurs (Jours de fix.)": ", ".join([str(v) if v is not None else "N/A" for v in valeurs]),
-                "Spot Calculé": round(spot, 6) if spot is not None else "N/A",
+                "Nom Entré": info["input_name"],          # 🌟 NOUVEAU
+                "Ticker Utilisé": info["resolved_ticker"], # 🌟 NOUVEAU
+                "Dates": ", ".join(info["dates"]),
+                "Valeurs": ", ".join([str(v) if v is not None else "N/A" for v in valeurs]),
+                "Spot": round(spot, 6) if spot is not None else "N/A",
                 "Pondération": pond
             })
 
@@ -199,27 +210,26 @@ if st.button("🚀 Calculer le spot"):
         st.dataframe(df)
         
         if prix_manquants_compteur > 0:
-            st.warning(f"⚠️ Attention : {prix_manquants_compteur} sous-jacent(s) n'a/ont pas pu avoir son/leur spot calculé (Ticker introuvable, dates invalides ou données manquantes).")
+            st.warning(f"⚠️ Attention : {prix_manquants_compteur} sous-jacent(s) n'a/ont pas pu avoir son/leur spot calculé (Ticker non reconnu ou données manquantes).")
 
 
         if pond_total == 0:
-            st.error("❌ Impossible de calculer le spot global : pondération totale = 0 ou aucun prix valide trouvé. Veuillez vérifier les dates et les tickers.")
+            st.error("❌ Impossible de calculer le spot global : pondération totale = 0 ou pas de prix valides. Vérifiez vos dates.")
         else:
             spot_global = spots / pond_total
-            st.subheader("✨ Spot Global Pondéré du Produit Structuré")
+            st.subheader("✨ Spot global pondéré")
             st.metric("Spot global", f"{spot_global:.6f}")
-            st.info(f"Mode de calcul des spots individuels : **{mode_global}**")
 
             # Graphique simple : barres des spots
             try:
                 fig, ax = plt.subplots(figsize=(10,4))
-                df_plot = df[df["Spot Calculé"] != "N/A"].set_index("Ticker Utilisé")
-                ax.bar(df_plot.index, df_plot["Spot Calculé"].astype(float), color='skyblue')
-                ax.set_ylabel("Spot Calculé")
+                df_plot = df[df["Spot"] != "N/A"].set_index("Ticker Utilisé")
+                ax.bar(df_plot.index, df_plot["Spot"].astype(float))
+                ax.set_ylabel("Spot")
                 ax.set_title("Spot par sous-jacent")
                 st.pyplot(fig)
             except Exception:
-                st.warning("Impossible de générer le graphique.")
+                 st.warning("Impossible de générer le graphique.")
 
             # Export Excel
             to_export = df.copy()
