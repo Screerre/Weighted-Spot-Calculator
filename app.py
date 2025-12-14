@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import requests
 import matplotlib.pyplot as plt
-import re # Nécessaire pour l'extraction de ticker
+import re 
 
 # Configuration de la page
 st.set_page_config(page_title="Spot Calculator", layout="wide")
@@ -20,7 +20,6 @@ def get_price_on_date(ticker, date_str):
     start = date - timedelta(days=4)
     end = date + timedelta(days=4)
     try:
-        # yfinance est sensible à la casse pour certains marchés, mais l'upper() est généralement sûr.
         data = yf.download(ticker.upper(), start=start, end=end, progress=False)
     except Exception:
         return None
@@ -36,44 +35,52 @@ def get_price_on_date(ticker, date_str):
 def safe_float_list(lst):
     return [None if v is None else float(v) for v in lst]
 
-# 🌟 NOUVELLE FONCTION : Résolution de Ticker via Recherche
+# 🌟 NOUVEAU : Fonction de validation rapide du Ticker
+def is_valid_ticker(ticker):
+    """Vérifie rapidement si un ticker est reconnu par yfinance."""
+    try:
+        # Tenter de charger les informations de base
+        info = yf.Ticker(ticker).info
+        # On vérifie si l'objet n'est pas vide et a un nom (indicatif de validité)
+        if 'longName' in info and info.get('currentPrice') is not None:
+            return True
+        return False
+    except Exception:
+        return False
+
+# 🌟 MODIFIÉ : Résolution de Ticker avec validation
 def resolve_ticker_from_name(name_or_ticker):
     """
     Tente de trouver le ticker Yahoo Finance à partir du nom de la compagnie 
-    ou vérifie si l'entrée est déjà un ticker.
-    Retourne le ticker (str) ou None.
+    et valide son existence avant de le retourner.
     """
     clean_input = name_or_ticker.strip().upper()
     
-    # 1. Traitement rapide si l'entrée ressemble à un Ticker (court, sans espace)
-    # L'heuristique ici est de considérer l'entrée comme Ticker si elle est courte.
-    if len(clean_input) <= 6 and (' ' not in clean_input):
-        return clean_input 
+    # 1. Vérification si l'entrée est déjà un Ticker potentiel
+    if len(clean_input) <= 8 and (' ' not in clean_input): # 8 pour être large (ex: tickers Euronext/Asie)
+        if is_valid_ticker(clean_input):
+            return clean_input
     
-    # 2. Si c'est un nom long, on utilise Google Search pour trouver le ticker.
+    # 2. Recherche via Google Search pour les noms longs ou tickers non validés
     query = f"{name_or_ticker} yahoo finance ticker"
     
     try:
-        # Appel à l'outil de recherche Google
         response = google.search(queries=[query])
         search_result = response.result
         
-        # Logique d'extraction : on cherche dans les titres/descriptions 
-        # des résultats un terme qui ressemble fortement à un ticker.
-        # Pattern: 1 à 5 lettres/chiffres, optionnellement suivis d'un point et 1-2 lettres (pour les marchés non US)
-        # On ne regarde que le début de la réponse pour plus de pertinence.
+        # Pattern pour les Tickers
         match = re.search(r"\b([A-Z0-9]{1,5}\.?[A-Z]{1,2}|[A-Z]{1,5})\b", search_result[:1000])
         
         if match:
-            # On vérifie que le résultat n'est pas un mot commun (ex: 'THE')
             potential_ticker = match.group(1).upper()
-            if len(potential_ticker) > 1 and potential_ticker not in ['THE', 'AND', 'FOR']:
-                return potential_ticker
-        
-        return None
+            
+            # Validation du ticker trouvé par la recherche
+            if is_valid_ticker(potential_ticker):
+                 return potential_ticker
+                 
+        return None # Aucune correspondance fiable trouvée
         
     except Exception:
-        # En cas d'erreur lors de l'appel de l'outil de recherche
         return None
 
 # ---------- Interface ----------
@@ -97,7 +104,6 @@ sous_jacents = {}
 for i in range(nb_sj):
     st.markdown(f"---\n**Sous-jacent {i+1}**")
     
-    # ⚠️ MODIFIÉ : Accepte Nom ou Ticker
     input_name = st.text_input(
         f"Nom de la compagnie ou Ticker (ex: Apple, BNP.PA)", 
         key=f"name_or_ticker{i}"
@@ -112,15 +118,18 @@ for i in range(nb_sj):
     
     if input_name and dates:
         
-        # 🌟 UTILISATION DE LA FONCTION DE RÉSOLUTION
         resolved_ticker = resolve_ticker_from_name(input_name)
         ticker_to_use = resolved_ticker if resolved_ticker else input_name.strip().upper()
 
-        if resolved_ticker is None and len(input_name.strip()) > 6 and ' ' in input_name.strip():
-            st.warning(f"⚠️ **Avertissement** : Ticker introuvable pour **'{input_name}'**. Le script tentera d'utiliser '{ticker_to_use}' (l'entrée brute) pour le calcul. Veuillez vérifier le résultat.")
-            
         dates_list = [d.strip() for d in dates.split("\n") if d.strip()]
-        
+
+        # 🌟 NOUVEAU : Affichage du feedback immédiat
+        if resolved_ticker:
+             st.success(f"✅ Ticker résolu et validé : **{ticker_to_use}**")
+        else:
+             st.error(f"❌ Ticker introuvable pour **'{input_name}'**. Utilisation de l'entrée brute : **{ticker_to_use}** (risque d'échec de récupération des prix).")
+
+
         # Le dictionnaire utilise le Ticker pour la clé (unique)
         sous_jacents[ticker_to_use] = { 
             "dates": dates_list, 
@@ -143,10 +152,10 @@ if st.button("🚀 Calculer le spot"):
         idx = 0
         
         mode_global = mode_calcul_global 
+        prix_manquants_compteur = 0
 
         for ticker, info in sous_jacents.items():
             
-            # Récupération des prix
             valeurs = [get_price_on_date(ticker, d) for d in info["dates"]]
             
             # Traitement des valeurs
@@ -154,6 +163,7 @@ if st.button("🚀 Calculer le spot"):
 
             if not valeurs_clean:
                 spot = None
+                prix_manquants_compteur += 1
             else:
                 # Logique de calcul du spot basée sur le mode global
                 if mode_global == "Moyenne simple":
@@ -163,7 +173,7 @@ if st.button("🚀 Calculer le spot"):
                 elif mode_global == "Cours le plus bas (min)":
                     spot = min(valeurs_clean)
                 else: 
-                    spot = sum(valeurs_clean) / len(valeurs_clean) # Fallback
+                    spot = sum(valeurs_clean) / len(valeurs_clean) 
 
             pond = info["pond"] if info["pond"] > 0 else 1.0
             if spot is not None:
@@ -182,11 +192,16 @@ if st.button("🚀 Calculer le spot"):
             idx += 1
             progress.progress(int(idx/total * 100))
         
-        progress.empty() # Enlever la barre de progression
+        progress.empty() 
 
         df = pd.DataFrame(resultats)
         st.subheader("📊 Résultats individuels par Sous-Jacent")
         st.dataframe(df)
+        
+        # Affichage d'un message d'erreur plus précis si des prix manquent
+        if prix_manquants_compteur > 0:
+            st.warning(f"⚠️ Attention : {prix_manquants_compteur} sous-jacent(s) n'a/ont pas pu avoir son/leur spot calculé (Ticker introuvable ou dates invalides).")
+
 
         if pond_total == 0:
             st.error("❌ Impossible de calculer le spot global : pondération totale = 0 ou aucun prix valide trouvé.")
