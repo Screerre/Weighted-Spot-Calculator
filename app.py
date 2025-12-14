@@ -5,10 +5,12 @@ from datetime import datetime, timedelta
 import pandas as pd
 import requests
 import matplotlib.pyplot as plt
+import re # Nécessaire pour l'extraction de ticker
 
+# Configuration de la page
 st.set_page_config(page_title="Spot Calculator", layout="wide")
 
-# ---------- Utilitaires (inchangé) ----------
+# ---------- Utilitaires ----------
 def get_price_on_date(ticker, date_str):
     """Retourne le prix Close le plus proche de date_str (format JJ/MM/AAAA)"""
     try:
@@ -18,7 +20,8 @@ def get_price_on_date(ticker, date_str):
     start = date - timedelta(days=4)
     end = date + timedelta(days=4)
     try:
-        data = yf.download(ticker, start=start, end=end, progress=False)
+        # yfinance est sensible à la casse pour certains marchés, mais l'upper() est généralement sûr.
+        data = yf.download(ticker.upper(), start=start, end=end, progress=False)
     except Exception:
         return None
     if data is None or data.empty:
@@ -33,13 +36,53 @@ def get_price_on_date(ticker, date_str):
 def safe_float_list(lst):
     return [None if v is None else float(v) for v in lst]
 
-# ---------- Interface (MODIFIÉE) ----------
-st.title("<Calcul automatique du Spot d’un Produit Structuré>")
-st.markdown("Entrez les tickers Yahoo (ex: AAPL, BNP.PA) et les dates (JJ/MM/AAAA) une par ligne.")
+# 🌟 NOUVELLE FONCTION : Résolution de Ticker via Recherche
+def resolve_ticker_from_name(name_or_ticker):
+    """
+    Tente de trouver le ticker Yahoo Finance à partir du nom de la compagnie 
+    ou vérifie si l'entrée est déjà un ticker.
+    Retourne le ticker (str) ou None.
+    """
+    clean_input = name_or_ticker.strip().upper()
+    
+    # 1. Traitement rapide si l'entrée ressemble à un Ticker (court, sans espace)
+    # L'heuristique ici est de considérer l'entrée comme Ticker si elle est courte.
+    if len(clean_input) <= 6 and (' ' not in clean_input):
+        return clean_input 
+    
+    # 2. Si c'est un nom long, on utilise Google Search pour trouver le ticker.
+    query = f"{name_or_ticker} yahoo finance ticker"
+    
+    try:
+        # Appel à l'outil de recherche Google
+        response = google.search(queries=[query])
+        search_result = response.result
+        
+        # Logique d'extraction : on cherche dans les titres/descriptions 
+        # des résultats un terme qui ressemble fortement à un ticker.
+        # Pattern: 1 à 5 lettres/chiffres, optionnellement suivis d'un point et 1-2 lettres (pour les marchés non US)
+        # On ne regarde que le début de la réponse pour plus de pertinence.
+        match = re.search(r"\b([A-Z0-9]{1,5}\.?[A-Z]{1,2}|[A-Z]{1,5})\b", search_result[:1000])
+        
+        if match:
+            # On vérifie que le résultat n'est pas un mot commun (ex: 'THE')
+            potential_ticker = match.group(1).upper()
+            if len(potential_ticker) > 1 and potential_ticker not in ['THE', 'AND', 'FOR']:
+                return potential_ticker
+        
+        return None
+        
+    except Exception:
+        # En cas d'erreur lors de l'appel de l'outil de recherche
+        return None
+
+# ---------- Interface ----------
+st.title("💰 Calcul automatique du Spot d’un Produit Structuré")
+st.markdown("Entrez les noms des compagnies ou tickers, et les dates de constatation.")
 
 nb_sj = st.number_input("Nombre de sous-jacents", min_value=1, max_value=10, value=2)
 
-# 🌟 MODIFICATION MAJEURE : SÉLECTEUR GLOBAL
+# Sélecteur Global (Unifié)
 mode_calcul_global = st.selectbox(
     "Mode de calcul du prix de constatation (applicable à tous les sous-jacents)",
     options=[
@@ -51,53 +94,68 @@ mode_calcul_global = st.selectbox(
 )
 
 sous_jacents = {}
-cols = st.columns(3)
 for i in range(nb_sj):
     st.markdown(f"---\n**Sous-jacent {i+1}**")
-    ticker = st.text_input(f"Ticker Yahoo (ex: BNP.PA)", key=f"ticker{i}")
+    
+    # ⚠️ MODIFIÉ : Accepte Nom ou Ticker
+    input_name = st.text_input(
+        f"Nom de la compagnie ou Ticker (ex: Apple, BNP.PA)", 
+        key=f"name_or_ticker{i}"
+    )
+    
     dates = st.text_area(f"Dates de constatation (JJ/MM/AAAA, une par ligne)", key=f"dates{i}", height=120)
     
-    # Sélecteur de mode retiré ici !
-
     ponderation = st.number_input(
-        f"Pondération (0 = équi-pondérée) pour {ticker or f'#{i+1}'}",
+        f"Pondération (0 = équi-pondérée) pour {input_name or f'#{i+1}'}",
         min_value=0.0, max_value=10.0, value=0.0, step=0.01, key=f"pond{i}"
     )
     
-    if ticker and dates:
+    if input_name and dates:
+        
+        # 🌟 UTILISATION DE LA FONCTION DE RÉSOLUTION
+        resolved_ticker = resolve_ticker_from_name(input_name)
+        ticker_to_use = resolved_ticker if resolved_ticker else input_name.strip().upper()
+
+        if resolved_ticker is None and len(input_name.strip()) > 6 and ' ' in input_name.strip():
+            st.warning(f"⚠️ **Avertissement** : Ticker introuvable pour **'{input_name}'**. Le script tentera d'utiliser '{ticker_to_use}' (l'entrée brute) pour le calcul. Veuillez vérifier le résultat.")
+            
         dates_list = [d.strip() for d in dates.split("\n") if d.strip()]
-        # Le mode n'est plus stocké ici, il est global.
-        sous_jacents[ticker.strip().upper()] = {
+        
+        # Le dictionnaire utilise le Ticker pour la clé (unique)
+        sous_jacents[ticker_to_use] = { 
             "dates": dates_list, 
             "pond": ponderation,
+            "input_name": input_name.strip(), 
+            "resolved_ticker": ticker_to_use   
         }
 
 st.write("")  # espace
 
-if st.button("Calculer le spot"):
+if st.button("🚀 Calculer le spot"):
     if not sous_jacents:
-        st.warning("Aucun sous-jacent renseigné.")
+        st.error("❌ Aucun sous-jacent renseigné ou impossible d'en déterminer un ticker valide.")
     else:
         resultats = []
         spots, pond_total = 0.0, 0.0
 
-        progress = st.progress(0)
+        progress = st.progress(0, text="Récupération des données...")
         total = len(sous_jacents)
         idx = 0
         
-        # Le mode de calcul global est récupéré ici
         mode_global = mode_calcul_global 
 
         for ticker, info in sous_jacents.items():
+            
+            # Récupération des prix
             valeurs = [get_price_on_date(ticker, d) for d in info["dates"]]
             
-            # Remplacer None par NaN
+            # Traitement des valeurs
             valeurs_clean = [v for v in valeurs if v is not None]
 
             if not valeurs_clean:
                 spot = None
             else:
-                # 🌟 LOGIQUE MODIFIÉE utilisant le mode global
+                # Logique de calcul du spot basée sur le mode global
                 if mode_global == "Moyenne simple":
                     spot = sum(valeurs_clean) / len(valeurs_clean)
                 elif mode_global == "Cours le plus haut (max)":
@@ -105,8 +163,7 @@ if st.button("Calculer le spot"):
                 elif mode_global == "Cours le plus bas (min)":
                     spot = min(valeurs_clean)
                 else: 
-                    # Par défaut : moyenne si le mode n'est pas reconnu (sécurité)
-                    spot = sum(valeurs_clean) / len(valeurs_clean)
+                    spot = sum(valeurs_clean) / len(valeurs_clean) # Fallback
 
             pond = info["pond"] if info["pond"] > 0 else 1.0
             if spot is not None:
@@ -114,48 +171,49 @@ if st.button("Calculer le spot"):
                 pond_total += pond
 
             resultats.append({
-                "Ticker": ticker,
-                "Dates": ", ".join(info["dates"]),
-                "Valeurs": ", ".join([str(v) if v is not None else "N/A" for v in valeurs]),
-                "Spot": round(spot, 6) if spot is not None else "N/A",
-                "Pondération": pond,
-                # Ajout du mode global pour référence dans le tableau
-                "Mode global utilisé": mode_global
+                "Nom Entré": info["input_name"],          
+                "Ticker Utilisé": info["resolved_ticker"], 
+                "Dates de constatation": ", ".join(info["dates"]),
+                "Valeurs (Jours de fix.)": ", ".join([str(v) if v is not None else "N/A" for v in valeurs]),
+                "Spot Calculé": round(spot, 6) if spot is not None else "N/A",
+                "Pondération": pond
             })
 
             idx += 1
             progress.progress(int(idx/total * 100))
+        
+        progress.empty() # Enlever la barre de progression
 
         df = pd.DataFrame(resultats)
-        st.subheader("- Résultats individuels -")
+        st.subheader("📊 Résultats individuels par Sous-Jacent")
         st.dataframe(df)
 
         if pond_total == 0:
-            st.error("Impossible de calculer spot global : pondération totale = 0 ou pas de prix valides.")
+            st.error("❌ Impossible de calculer le spot global : pondération totale = 0 ou aucun prix valide trouvé.")
         else:
             spot_global = spots / pond_total
-            st.subheader("- Spot global pondéré -")
+            st.subheader("✨ Spot Global Pondéré du Produit Structuré")
             st.metric("Spot global", f"{spot_global:.6f}")
-            st.info(f"Le mode de calcul des spots individuels utilisé est : **{mode_global}**")
+            st.info(f"Mode de calcul des spots individuels : **{mode_global}**")
 
             # Graphique simple : barres des spots
             try:
                 fig, ax = plt.subplots(figsize=(10,4))
-                df_plot = df[df["Spot"] != "N/A"].set_index("Ticker")
-                ax.bar(df_plot.index, df_plot["Spot"].astype(float))
-                ax.set_ylabel("Spot")
+                df_plot = df[df["Spot Calculé"] != "N/A"].set_index("Ticker Utilisé")
+                ax.bar(df_plot.index, df_plot["Spot Calculé"].astype(float), color='skyblue')
+                ax.set_ylabel("Spot Calculé")
                 ax.set_title("Spot par sous-jacent")
                 st.pyplot(fig)
             except Exception:
-                pass
+                st.warning("Impossible de générer le graphique.")
 
-            # Export Excel (création en mémoire)
+            # Export Excel
             to_export = df.copy()
             with pd.ExcelWriter("spots_export.xlsx", engine="openpyxl") as out:
                 to_export.to_excel(out, index=False, sheet_name="Spots")
             with open("spots_export.xlsx", "rb") as f:
                 st.download_button(
-                    label="Télécharger le résultat Excel",
+                    label="⬇️ Télécharger le résultat Excel",
                     data=f,
                     file_name="spots.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
