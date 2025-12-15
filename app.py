@@ -55,19 +55,18 @@ def resolve_ticker_from_name(name_or_ticker):
     # --- 1. Mappage Direct des noms courants (Liste Blanche) ---
     COMMON_TICKERS = {
         "APPLE": "AAPL", "MICROSOFT": "MSFT", "GOOGLE": "GOOGL", "ALPHABET": "GOOGL",
-        "AMAZON": "AMZN", "NVIDIA": "NVDA", "TESLA": "TSLA", "META": "META",
-        "BERKSHIRE HATHAWAY": "BRK-A","JOHNSON & JOHNSON": "JNJ",
+        "AMAZON": "AMZN","META": "META","BERKSHIRE HATHAWAY": "BRK-A","JOHNSON & JOHNSON": "JNJ",
         "JPMORGAN CHASE": "JPM", "EXXON MOBIL": "XOM", "COCA-COLA": "KO",
         "WALMART": "WMT", "DISNEY": "DIS", "LVMH": "LVMH.PA", "LOREAL": "OR.PA",
         "TOTALENERGIES": "TTE", "SANTE": "SAN.PA", "BNP PARIBAS": "BNP.PA",
         "BNP": "BNP.PA", "SOCIETE GENERALE": "GLE.PA", "HERMES": "RMS.PA",
         "AIRBUS": "AIR.PA", "AXA": "CS.PA", "SAP": "SAP.DE", "SIEMENS": "SIE.DE",
-        "BAYER": "BAYN.DE", "SAMSUNG": "005930.KS", "TSMC": "TSM",
-        "TOYOTA": "TM","JPMORGAN CHASE": "JPM","BANK OF AMERICA": "BAC",
+        "BAYER": "BAYN.DE", "SAMSUNG": "005930.KS", "TSMC": "TSM","TOYOTA": "TM",
+        "JPMORGAN CHASE": "JPM","BANK OF AMERICA": "BAC",
         "WELLS FARGO & CO": "WFC","GOLDMAN SACHS": "GS","MORGAN STANLEY": "MS",
         "CITIGROUP INC": "C","CITIGROUP": "C","CITI" : "C","BNP PARIBAS": "BNP.PA",
         "CREDIT AGRICOLE": "ACA.PA","DEUTSCHE BANK AG": "DBK.DE","COMMERZBANK AG": "CBK.DE",
-        "UBS GROUP AG": "UBSG.SW","UBS GROUP" : "UBSG.SW","UBS": "UBSG.SW","CREDIT SUISSE": "CSGN.SW",
+        "UBS GROUP AG": "UBSG.SW","UBS GROUP" : "UBSG.SW","UBS": "UBSG.SW"
         "STANDARD CHARTERED": "STAN.L","BARCLAYS PLC": "BARC.L","LLOYDS BANKING GROUP": "LLOY.L",
         "NATWEST GROUP": "NWG.L","ROYAL BANK OF CANADA": "RY","TORONTO-DOMINION BANK": "TD",
         "SOCIETE GENERALE": "GLE.PA","HSBC": "HSBA.L",
@@ -180,9 +179,31 @@ def resolve_ticker_from_name(name_or_ticker):
         "Fresenius": "FRE.DE","Fresenius Medical Care": "FME.DE","Beiersdorf": "BEI.DE",
         "Henkel": "HEN3.DE","Continental": "CON.DE","Covestro": "1COV.DE","Symrise": "SY1.DE",
         "Puma": "PUM.DE","Zalando": "ZAL.DE","Delivery Hero": "DHER.DE","Qiagen": "QIA.DE",
-        "Sartorius": "SRT3.DE","Vonovia": "VNA.DE","Brenntag": "BNR.DE"
+        "Sartorius": "SRT3.DE","Vonovia": "VNA.DE","Brenntag": "BNR.DE",
+        
+        "Apple": "AAPL","Microsoft": "MSFT","Alphabet": "GOOGL","Amazon": "AMZN","Nvidia": "NVDA",
+        "Tesla": "TSLA","Meta Platforms": "META","Berkshire Hathaway": "BRK-A","Johnson & Johnson": "JNJ",
+        "UnitedHealth Group": "UNH","Pfizer": "PFE","Merck & Co": "MRK","AbbVie": "ABBV","Eli Lilly": "LLY",
+        "Amgen": "AMGN","Exxon Mobil": "XOM","Chevron": "CVX","ConocoPhillips": "COP","Coca-Cola": "KO",
+        "PepsiCo": "PEP","Procter & Gamble": "PG","Walmart": "WMT","Costco": "COST","McDonalds": "MCD",
+        "Nike": "NKE","Home Depot": "HD","Disney": "DIS","JPMorgan Chase": "JPM","Bank of America": "BAC",
+        "Wells Fargo": "WFC","Goldman Sachs": "GS","Morgan Stanley": "MS","Citigroup": "C","Charles Schwab": "SCHW",
+        "Ally Financial": "ALLY","BlackRock": "BLK","State Street": "STT","BNY Mellon": "BK","Northern Trust": "NTRS",
+        "Visa": "V","Mastercard": "MA","American Express": "AXP","PayPal": "PYPL","Block": "SQ","Coinbase": "COIN",
+        "Adobe": "ADBE","Oracle": "ORCL","Salesforce": "CRM","ServiceNow": "NOW","Workday": "WDAY","Intuit": "INTU",
+        "Snowflake": "SNOW","ASML Holding": "ASML","Samsung Electronics": "005930.KS","SK Hynix": "000660.KS",
+        "AMD": "AMD","Applied Materials": "AMAT","Lam Research": "LRCX","KLA": "KLAC","Infineon Technologies": "IFX.DE",
+        "STMicroelectronics": "STM.PA","Tencent Holdings": "0700.HK","Alibaba Group": "BABA","JD.com": "JD",
+        "Meituan": "3690.HK","Baidu": "BIDU","NetEase": "NTES","Sony Group": "SONY","Nintendo": "7974.T",
+        "SoftBank Group": "9984.T","Keyence": "6861.T","Hitachi": "6501.T","Fanuc": "6954.T",
+        "Recruit Holdings": "6098.T","Toyota Motor": "TM","Nestle": "NESN.SW","Roche Holding": "ROG.SW",
+        "Novartis": "NOVN.SW","Zurich Insurance Group": "ZURN.SW","Swiss Re": "SREN.SW","UBS Group": "UBSG.SW",
+        "Schneider Electric": "SU.PA","Vinci": "DG.PA", "SAP": "SAP.DE","Siemens": "SIE.DE","Allianz": "ALV.DE",
+        "Deutsche Telekom": "DTE.DE","BMW": "BMW.DE","Mercedes-Benz Group": "MBG.DE","Volkswagen": "VOW3.DE",
+        "BASF": "BAS.DE","Bayer": "BAYN.DE","Munich Re": "MUV2.DE","HSBC Holdings": "HSBA.L",
+        "Shell": "SHEL.L","BP": "BP.L","Unilever": "ULVR.L","Rio Tinto": "RIO.L","Diageo": "DGE.L",
+        "London Stock Exchange Group": "LSEG.L"
 }
-
     if clean_input in COMMON_TICKERS:
         return COMMON_TICKERS[clean_input]
 
