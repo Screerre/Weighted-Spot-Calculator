@@ -166,13 +166,21 @@ def resolve_ticker_from_name(name_or_ticker):
         "InterContinental Hotels Group": "IHG.L","Rolls-Royce Holdings": "RR.L","BAE Systems": "BA.L",
         "Smiths Group": "SMIN.L","Halma": "HLMA.L","Spirax-Sarco Engineering": "SPX.L",
         "Ashtead Group": "AHT.L","Croda International": "CRDA.L", "Fresnillo": "FRES.L",
-  "Anglo American": "AAL.L",
-  "Antofagasta": "ANTO.L",
-  "Glencore": "GLEN.L",
-  "Rentokil Initial": "RTO.L",
-  "Severn Trent": "SVT.L",
-  "United Utilities": "UU.L",
-  "National Grid": "NG.L"
+        "Anglo American": "AAL.L","Antofagasta": "ANTO.L","Glencore": "GLEN.L","Rentokil Initial": "RTO.L",
+        "Severn Trent": "SVT.L","United Utilities": "UU.L","National Grid": "NG.L",
+#--- DAX ---
+        "SAP": "SAP.DE","Siemens": "SIE.DE","Allianz": "ALV.DE","Deutsche Telekom": "DTE.DE",
+        "Mercedes-Benz Group": "MBG.DE","BMW": "BMW.DE","Volkswagen": "VOW3.DE",
+        "Porsche Automobil Holding": "PAH3.DE","Porsche AG": "P911.DE","BASF": "BAS.DE",
+        "Bayer": "BAYN.DE","Merck KGaA": "MRK.DE","Siemens Healthineers": "SHL.DE",
+        "Siemens Energy": "ENR.DE","Infineon Technologies": "IFX.DE","RWE": "RWE.DE",
+        "E.ON": "EOAN.DE","Heidelberg Materials": "HEI.DE","MTU Aero Engines": "MTX.DE",
+        "Deutsche Post DHL": "DHL.DE","Deutsche Boerse": "DB1.DE","Munich Re": "MUV2.DE",
+        "Hannover Re": "HNR1.DE","Commerzbank": "CBK.DE","Deutsche Bank": "DBK.DE",
+        "Fresenius": "FRE.DE","Fresenius Medical Care": "FME.DE","Beiersdorf": "BEI.DE",
+        "Henkel": "HEN3.DE","Continental": "CON.DE","Covestro": "1COV.DE","Symrise": "SY1.DE",
+        "Puma": "PUM.DE","Zalando": "ZAL.DE","Delivery Hero": "DHER.DE","Qiagen": "QIA.DE",
+        "Sartorius": "SRT3.DE","Vonovia": "VNA.DE","Brenntag": "BNR.DE"
 }
 
     if clean_input in COMMON_TICKERS:
